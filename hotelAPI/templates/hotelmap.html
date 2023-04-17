@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Map Categories</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+        integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+
+    <style>
+        .leaflet-popup-content-wrapper {
+            background-color: #39ff14;
+            /* neon green */
+            color: #000;
+            /* text color */
+            /* Add more custom styles here */
+        }
+
+        .marker-popup {
+            background-color: #0f0;
+            color: #000;
+            font-size: 18px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            /* Add more custom styles here */
+        }
+
+        .marker-popup h2 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 0;
+            color: #000;
+            /* Add more custom styles here */
+        }
+
+        .marker-popup p {
+            font-size: 18px;
+            margin-top: 10px;
+            color: #000;
+            /* Add more custom styles here */
+        }
+
+        /* Set body height to 100% to cover the entire viewport */
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Set map container height to 100% to cover the entire body */
+        #mapid {
+            height: 900px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Style the radio buttons as horizontal list items */
+        #radio-buttons ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            background-color: #2c3e50;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        #radio-buttons li {
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Style the radio buttons and labels */
+        #radio-buttons input[type="radio"] {
+            display: none;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+        }
+
+        #radio-buttons label {
+            display: block;
+            padding: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+        }
+
+        /* Style the radio buttons label as active when selected */
+        #radio-buttons input[type="radio"]:checked+label {
+            background-color: #2980b9;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            font-weight: bolder;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="radio-buttons">
+        <ul>
+            <li>
+                <input type="radio" name="category" value="restaurant" id="restaurants" checked>
+                <label for="restaurants">Restaurants</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="fastfood" id="fastfood">
+                <label for="fastfood">Fast Food</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="cafe" id="cafe">
+                <label for="cafe">Cafe</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="pub" id="pub">
+                <label for="pub">Pub</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="bar" id="bar">
+                <label for="bar">Bar</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="icecream" id="icecream">
+                <label for="icecream">Ice Cream</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="foodcourt" id="foodcourt">
+                <label for="foodcourt">Food Court</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="bbq" id="bbq">
+                <label for="bbq">BBQ</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="marketplace" id="marketplace">
+                <label for="marketplace">Marketplace</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="festival" id="festival">
+                <label for="festival">
+                    Festival Grounds</label>
+            </li>
+            <li>
+                <input type="radio" name="category" value="casino" id="casino">
+                <label for="casino">Casino</label>
+            </li>
+        </ul>
+        <div id="mapid"></div>
+
+    </div>
+
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+        integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"
+        integrity="sha512-xbQU0+iHqhVt7VIXi6vBJKPh3IQBF5B84sSHdjKiSccyX/1ZI7Vnkt2/8y8uruj63/DVmCxfUNohPNruthTEQA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"
+        integrity="sha512-OFs3W4DIZ5ZkrDhBFtsCP6JXtMEDGmhl0QPlmWYBJay40TT1n3gt2Xuw8Pf/iezgW9CdabjkNChRqozl/YADmg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+        <script src="https://code.jquery.com/jquery-3.6.4.min.js" integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+    <script>
+        // Initialize the map
+        var map = L.map('mapid').setView([44.40368362937678, -84.46473885816516], 6);
+        var socket = io();
+        // socket.emit('category', {data: 'all'});
+        // socket.on('response', (arg) => {
+        //             console.log('server emit', arg);
+        //         });
+
+        // Add a tile layer to the map
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20,
+            attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        var url = "https://raw.githubusercontent.com/buerbusan/flask-hotel-viewer/main/michigan.geojson";
+
+        // Use jQuery.ajax to fetch the GeoJSON data
+        $.ajax({
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Create a Leaflet layer group to hold the GeoJSON data
+                var geojsonLayer = L.geoJSON(data);
+
+                // Add the GeoJSON layer to the map
+                geojsonLayer.addTo(map);
+            }
+        });
+        // var stateBoundary = new L.GeoJSON(michigan).addTo(map);
+
+        // Handle radio button changes
+        var radioButtons = document.getElementsByName('category');
+        radioButtons.forEach(radioButton => {
+            radioButton.addEventListener('change', event => {
+
+                // Get the selected value
+                const selectedValue = event.target.value;
+
+                // Do something with the selected value
+                socket.emit('category', { selectedValue })
+
+                // Call a function or perform any other action based on the selected value
+                // ...
+            });
+        });
+        socket.on('response', (response) => {
+            var markers = response;
+            var markerClusterGroup; // Initialize a variable to store the marker cluster group
+            if (markerClusterGroup) {
+                // If it exists, remove it from the map
+                map.removeLayer(markerClusterGroup);
+            }
+            var geojson = {
+                type: "FeatureCollection",
+                features: []
+            };
+
+            for (var i = 0; i < markers.length; i++) {
+                var obj = markers[i];
+                var feature = {
+                    type: "Feature",
+                    geometry: {
+                        type: "Point",
+                        coordinates: [obj.longitude, obj.latitude]
+                    },
+                    properties: obj // Add all properties from the object to the properties object
+                };
+                geojson.features.push(feature);
+            }
+            console.log(geojson);
+
+
+            // Function to create marker cluster
+            function createMarkerCluster() {
+
+
+                // Create a marker cluster group
+                map.eachLayer(function (layer) {
+                    map.removeLayer(layer);
+                });
+                L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+                    maxZoom: 20,
+                    attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                var url = "https://raw.githubusercontent.com/buerbusan/flask-hotel-viewer/main/michigan.geojson";
+
+                // Use jQuery.ajax to fetch the GeoJSON data
+                $.ajax({
+                    url: url,
+                    dataType: "json",
+                    success: function (data) {
+                        // Create a Leaflet layer group to hold the GeoJSON data
+                        var geojsonLayer = L.geoJSON(data);
+
+                        // Add the GeoJSON layer to the map
+                        geojsonLayer.addTo(map);
+                    }
+                });
+
+                // Create a new marker cluster group
+                markerClusterGroup = L.markerClusterGroup();
+                
+                
+                // Loop through the array of markers and create individual markers
+                markers.forEach(function (marker) {
+                    var latLng = L.latLng(marker.longitude, marker.latitude);
+
+                    var marker = L.marker(latLng)
+
+                        .bindPopup("<div class='marker-popup'><h2>" + marker.name + "<bold></h2><p>Category:</bold> " + marker.amenity + "</p><p>Address: " + marker.addrstreet + "</p><p>Opening Hours: " + marker.opening_ho + "</p></div>");
+
+                    // Add the marker to the marker cluster group
+                    markerClusterGroup.addLayer(marker);
+                });
+
+                // Add the marker cluster group to the map
+                map.addLayer(markerClusterGroup);
+            }
+
+            // Check if the marker cluster group exists
+
+
+            // Call the function to create the marker cluster
+            createMarkerCluster();
+        })
+        map.on('click', function (e) {
+            console.log(e.latlng.lat, e.latlng.lng)
+        })
+
+
+    </script>
+</body>
+
+</html>
