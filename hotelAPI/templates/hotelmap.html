@@ -8,7 +8,7 @@
         integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster/dist/MarkerCluster.Default.css" />
-
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <style>
         .leaflet-popup-content-wrapper {
             background-color: #39ff14;
@@ -52,9 +52,19 @@
 
         /* Set map container height to 100% to cover the entire body */
         #mapid {
-            height: 900px;
+            height: 700px;
             width: 100%;
             justify-content: center;
+
+            position: relative;
+            z-index: 1;
+        }
+
+        .ui-slider .ui-slider-handle {
+            width: 2em;
+            left: -.6em;
+            text-decoration: none;
+            text-align: center;
         }
 
         /* Style the radio buttons as horizontal list items */
@@ -97,6 +107,30 @@
             background-color: #2980b9;
             font-family: Verdana, Geneva, Tahoma, sans-serif;
             font-weight: bolder;
+        }
+
+        #custom-handle {
+            top: 50%;
+            margin-top: -.8em;
+            /* text-align: center;
+            line-height: 1.6em; */
+            z-index: -1;
+            margin-left: 10px;
+            width: 15px;
+        }
+
+        #slider {
+            position: absolute;
+            top: 10%;
+            z-index: 100;
+            width: 80%;
+            /* background-color: white; */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-left: 10%;
+            margin-right: 10%;
+
         }
     </style>
 </head>
@@ -151,7 +185,14 @@
                 <label for="casino">Casino</label>
             </li>
         </ul>
-        <div id="mapid"></div>
+        <div>
+            <div id="mapid"></div>
+            <div id="slider">
+                <h2 style="color: #fff;">Select Radius (km)</h2>
+                <div id="custom-handle" class="ui-slider-handle"></div>
+            </div>
+
+        </div>
 
     </div>
 
@@ -165,17 +206,17 @@
         integrity="sha512-OFs3W4DIZ5ZkrDhBFtsCP6JXtMEDGmhl0QPlmWYBJay40TT1n3gt2Xuw8Pf/iezgW9CdabjkNChRqozl/YADmg=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-        <script src="https://code.jquery.com/jquery-3.6.4.min.js" integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
     <script>
         // Initialize the map
         var map = L.map('mapid').setView([44.40368362937678, -84.46473885816516], 6);
         var socket = io();
-        // socket.emit('category', {data: 'all'});
-        // socket.on('response', (arg) => {
-        //             console.log('server emit', arg);
-        //         });
+        var geojson;
+        var markerClusterGroup;
 
-        // Add a tile layer to the map
         L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
             maxZoom: 20,
             attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
@@ -213,12 +254,11 @@
         });
         socket.on('response', (response) => {
             var markers = response;
-            var markerClusterGroup; // Initialize a variable to store the marker cluster group
             if (markerClusterGroup) {
                 // If it exists, remove it from the map
                 map.removeLayer(markerClusterGroup);
             }
-            var geojson = {
+            geojson = {
                 type: "FeatureCollection",
                 features: []
             };
@@ -235,7 +275,6 @@
                 };
                 geojson.features.push(feature);
             }
-            console.log(geojson);
 
 
             // Function to create marker cluster
@@ -267,8 +306,8 @@
 
                 // Create a new marker cluster group
                 markerClusterGroup = L.markerClusterGroup();
-                
-                
+
+
                 // Loop through the array of markers and create individual markers
                 markers.forEach(function (marker) {
                     var latLng = L.latLng(marker.longitude, marker.latitude);
@@ -291,9 +330,79 @@
             // Call the function to create the marker cluster
             createMarkerCluster();
         })
-        map.on('click', function (e) {
-            console.log(e.latlng.lat, e.latlng.lng)
-        })
+        var layer; // Define 'layer' variable outside of the event listener
+        var radius
+        $(function () {
+            var handle = $("#custom-handle");
+            $("#slider").slider({
+                min: 1,
+                max: 10,
+                step: 1,
+                create: function () {
+                    handle.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    handle.text(ui.value);
+                    radius = parseInt(ui.value);
+                }
+            });
+        });
+
+        map.on('dblclick', function (e) {
+            map.doubleClickZoom.disable();
+            center = [e.latlng.lng, e.latlng.lat];
+
+            var options = { steps: 360, units: 'kilometers', properties: { foo: 'bar' } };
+            var circle = turf.circle(center, radius, options);
+
+            if (layer && map.hasLayer(layer)) {
+                map.removeLayer(layer);
+            }
+            var filteredPoints = [];
+
+            layer = new L.GeoJSON(circle).addTo(map);
+            var turfPoints = geojson.features.map(function (feature) {
+                var coordinates = feature.geometry.coordinates; // [longitude, latitude] order
+                var reversedCoordinates = [coordinates[1], coordinates[0]]; // [latitude, longitude] order
+                return turf.point(reversedCoordinates, feature.properties);
+            });
+            turfPoints.forEach(function (turfPoint) {
+                var turfPointCoordinates = turfPoint.geometry.coordinates;
+                var turfPointProperties = turfPoint.properties;
+                if(turf.booleanPointInPolygon(turfPoint,circle)){
+                    filteredPoints.push(turfPoint)
+                }
+                // Do something with the converted Turf.js Point
+            });
+            console.log(filteredPoints)
+            map.removeLayer(markerClusterGroup);
+            var filteredMarkerCluster = L.markerClusterGroup();
+            map.addLayer(filteredMarkerCluster)
+            for (var i = 0; i < filteredPoints.length; i++) {
+                var latLng = L.latLng(filteredPoints[i].properties.longitude, filteredPoints[i].properties.latitude);
+               var layer = new L.marker(latLng).bindPopup("<div class='marker-popup'><h2>" + filteredPoints[i].properties.name + "<bold></h2><p>Category:</bold> " + filteredPoints[i].properties.amenity + "</p><p>Address: " + filteredPoints[i].properties.addrstreet + "</p><p>Opening Hours: " + filteredPoints[i].properties.opening_ho + "</p></div>");
+               filteredMarkerCluster.addLayer(layer)
+
+            }
+            
+        });
+
+
+        // map.on('dblclick', function (e) {
+        //     map.doubleClickZoom.disable();
+        //     center = [e.latlng.lng, e.latlng.lat]
+        //     var radius = 5;
+        //     var options = {steps: 360, units: 'kilometers', properties: {foo: 'bar'}};
+        //     var circle = turf.circle(center, radius, options);
+        //     var layer;
+        //     if(map.hasLayer(layer)){
+        //         map.removeLayer(layer)
+        //         layer =new L.GeoJSON(circle).addTo(map);
+        //     }
+        //     else{
+        //         layer=new L.GeoJSON(circle).addTo(map);
+        //     }
+        // })
 
 
     </script>
